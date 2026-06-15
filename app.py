@@ -6,13 +6,14 @@ from PIL import Image
 import os
 import glob
 import numpy as np
+import cv2
 from collections import Counter
 
-st.set_page_config(page_title="Bacteria FSL", layout="wide")
+st.set_page_config(page_title="Automated Pathogen System", layout="wide")
 
 # --- UI Header ---
-st.title("🦠 Few-Shot Classification (ProtoNet)")
-st.markdown("Automated Light Microscopy Pathogen Identification System")
+st.title("🦠 Automated Light Microscopy Pathogen System")
+st.markdown("Integrated framework for **Pathogen Identification (ProtoNet)** and **Edge-Based Colony Counting**.")
 
 # --- Config ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -121,13 +122,12 @@ transform = transforms.Compose([
 
 @st.cache_resource
 def load_model(model_path):
-    # Cloud එකේ Memory අවුල් නොඑන්න CPU එකට Load කරනවා
     m = ProtoNet().to(torch.device("cpu"))
     try:
         state = torch.load(model_path, map_location=torch.device("cpu"))
         m.load_state_dict(state)
     except Exception as e:
-        st.error(f"Weights ලෝඩ් වුණේ නෑ!: {e}")
+        st.error(f"Weights load error (Ignore if just testing UI): {e}")
     m.eval()
     return m
 
@@ -140,13 +140,9 @@ def image_to_embedding(image: Image.Image, model):
 @st.cache_resource
 def build_prototypes(support_dir, _model, k_per_class=5):
     prototypes = {}
-    
-    # Folder එක නැත්නම් ඔටෝම හදනවා (Error එන්නේ නෑ)
     os.makedirs(support_dir, exist_ok=True)
-        
     classes = sorted([d for d in os.listdir(support_dir) if os.path.isdir(os.path.join(support_dir, d))])
     
-    # Folder එක ඇතුළේ බැක්ටීරියා මුකුත් නැත්නම්, හිස් මතකය Return කරනවා
     if not classes:
         return prototypes
         
@@ -176,7 +172,7 @@ prototypes = build_prototypes(SUPPORT_DIR, model, NUM_SUPPORT_PER_CLASS)
 
 
 # ==========================================
-# Sidebar: Support Set Updater (අලුත් බැක්ටීරියා දාන තැන)
+# Sidebar: Support Set Updater
 # ==========================================
 st.sidebar.header("⚙️ Support Set Manager")
 st.sidebar.write("Add a novel bacterial class to the memory.")
@@ -197,84 +193,141 @@ if st.sidebar.button("Update Prototype Memory"):
             with open(os.path.join(new_dir, f.name), "wb") as out_file:
                 out_file.write(f.getbuffer())
                 
-        # Cache එක clear කරලා App එක Refresh කරනවා අලුත් මතකය ගන්න
         st.cache_resource.clear()
         st.sidebar.success(f"✅ '{new_class_name}' added successfully! Page will refresh...")
         st.rerun()
 
 # ==========================================
-# MAIN UI: Image Analysis (Query Images)
+# TABS CREATION
 # ==========================================
-if len(prototypes) == 0:
-    st.warning("No class prototypes found in memory. Please use the sidebar to add a new support set.")
-    st.stop()
+tab1, tab2 = st.tabs(["🔬 Pathogen Identification (Few-Shot)", "🧮 Edge-Based Colony Counting"])
 
-st.success(f"✅ System Online: {len(prototypes)} distinct bacterial species loaded into Prototype Memory.")
-
-uploaded_files = st.file_uploader("📤 Upload microscopy images for analysis (Minimum 5 images required)", type=["jpg","jpeg","png","bmp","tif","tiff"], accept_multiple_files=True)
-
-if uploaded_files:
-    if len(uploaded_files) < 5:
-        st.warning(f"⚠️ You have only uploaded {len(uploaded_files)} image(s). Please upload at least 5 images to run the analysis (Majority Voting).")
+# ---------------------------------------------------------
+# TAB 1: PATHOGEN IDENTIFICATION
+# ---------------------------------------------------------
+with tab1:
+    if len(prototypes) == 0:
+        st.warning("No class prototypes found in memory. Please use the sidebar to add a new support set.")
     else:
-        st.info(f"⏳ Processing {len(uploaded_files)} images via ResNet18... Please wait.")
-        all_preds = []
-        
-        for uploaded_file in uploaded_files:
-            try:
-                test_img = Image.open(uploaded_file).convert("RGB")
-                test_emb = image_to_embedding(test_img, model).numpy()
+        st.success(f"✅ System Online: {len(prototypes)} distinct bacterial species loaded into Prototype Memory.")
 
-                class_names = list(prototypes.keys())
-                proto_matrix = np.stack([prototypes[c] for c in class_names], axis=0)
-                
-                dists = np.linalg.norm(proto_matrix - test_emb[None, :], axis=1)
-                min_idx = int(np.argmin(dists))
-                min_dist = dists[min_idx]
-                
-                if min_dist > THRESHOLD:
-                    all_preds.append("Unknown Species (Out of Distribution)")
-                else:
-                    all_preds.append(class_names[min_idx])
-                    
-            except Exception as e:
-                st.error(f"Error processing {uploaded_file.name}: {e}")
+        uploaded_files = st.file_uploader("📤 Upload microscopy images for analysis (Minimum 5 images required)", type=["jpg","jpeg","png","bmp","tif","tiff"], accept_multiple_files=True, key="query")
 
-        if all_preds:
-            vote_counts = Counter(all_preds)
-            best_answer, max_votes = vote_counts.most_common(1)[0]
-            
-            st.markdown("---")
-            
-            if "Unknown Species" in best_answer:
-                st.error(f"🚨 **ALERT:** High-distance anomaly detected.\n\n**Final Prediction:** {best_answer}")
+        if uploaded_files:
+            if len(uploaded_files) < 5:
+                st.warning(f"⚠️ You have only uploaded {len(uploaded_files)} image(s). Please upload at least 5 images to run the analysis (Majority Voting).")
             else:
-                st.success(f"🦠 **Final Predicted Bacteria:** {best_answer}")
-                st.write(f"*(Confidence: {max_votes} out of {len(all_preds)} images agreed on this result)*")
+                st.info(f"⏳ Processing {len(uploaded_files)} images via ResNet18... Please wait.")
+                all_preds = []
                 
-                # --- INFO DISPLAY SECTION ---
-                st.markdown("### 📋 Clinical Information")
-                
-                info = BACTERIA_INFO.get(best_answer)
-                
-                if info:
-                    st.info(f"**🔬 Description:** {info['description']}")
-                    st.warning(f"**⚠️ Associated Diseases:** {info['diseases']}")
-                    st.success(f"**💡 Clinical Details:** {info['details']}")
-                else:
-                    st.info("⚠️ No clinical information available in the knowledge base for this newly added species.")
-            
-            with st.expander("📊 View Detailed Voting Results"):
-                st.write("Breakdown according to processed images:")
-                for name, count in vote_counts.items():
-                    percentage = (count / len(all_preds)) * 100
-                    st.write(f"- **{name}**: {count} images ({percentage:.1f}%)")
+                for uploaded_file in uploaded_files:
+                    try:
+                        test_img = Image.open(uploaded_file).convert("RGB")
+                        test_emb = image_to_embedding(test_img, model).numpy()
+
+                        class_names = list(prototypes.keys())
+                        proto_matrix = np.stack([prototypes[c] for c in class_names], axis=0)
+                        
+                        dists = np.linalg.norm(proto_matrix - test_emb[None, :], axis=1)
+                        min_idx = int(np.argmin(dists))
+                        min_dist = dists[min_idx]
+                        
+                        if min_dist > THRESHOLD:
+                            all_preds.append("Unknown Species (Out of Distribution)")
+                        else:
+                            all_preds.append(class_names[min_idx])
+                            
+                    except Exception as e:
+                        st.error(f"Error processing {uploaded_file.name}: {e}")
+
+                if all_preds:
+                    vote_counts = Counter(all_preds)
+                    best_answer, max_votes = vote_counts.most_common(1)[0]
                     
-                st.write("---")
-                cols = st.columns(min(len(uploaded_files), 5)) 
-                for i, col in enumerate(cols):
-                    if i < 5:
-                        img = Image.open(uploaded_files[i])
-                        col.image(img, use_container_width=True) 
-                if len(uploaded_files) > 5:
-                    st.write(f"... and {len(uploaded_files) - 5} more images processed.")
+                    st.markdown("---")
+                    
+                    if "Unknown Species" in best_answer:
+                        st.error(f"🚨 **ALERT:** High-distance anomaly detected.\n\n**Final Prediction:** {best_answer}")
+                    else:
+                        st.success(f"🦠 **Final Predicted Bacteria:** {best_answer}")
+                        st.write(f"*(Confidence: {max_votes} out of {len(all_preds)} images agreed on this result)*")
+                        
+                        # --- INFO DISPLAY SECTION ---
+                        st.markdown("### 📋 Clinical Information")
+                        info = BACTERIA_INFO.get(best_answer)
+                        
+                        if info:
+                            st.info(f"**🔬 Description:** {info['description']}")
+                            st.warning(f"**⚠️ Associated Diseases:** {info['diseases']}")
+                            st.success(f"**💡 Clinical Details:** {info['details']}")
+                        else:
+                            st.info("⚠️ No clinical information available in the knowledge base for this newly added species.")
+                    
+                    with st.expander("📊 View Detailed Voting Results"):
+                        st.write("Breakdown according to processed images:")
+                        for name, count in vote_counts.items():
+                            percentage = (count / len(all_preds)) * 100
+                            st.write(f"- **{name}**: {count} images ({percentage:.1f}%)")
+                            
+                        st.write("---")
+                        cols = st.columns(min(len(uploaded_files), 5)) 
+                        for i, col in enumerate(cols):
+                            if i < 5:
+                                img = Image.open(uploaded_files[i])
+                                col.image(img, use_container_width=True) 
+                        if len(uploaded_files) > 5:
+                            st.write(f"... and {len(uploaded_files) - 5} more images processed.")
+
+# ---------------------------------------------------------
+# TAB 2: COLONY COUNTING
+# ---------------------------------------------------------
+with tab2:
+    st.header("🧮 Edge-Based Bacterial Colony Counting")
+    st.write("Upload an Agar Plate image to automatically segment and count Colony-Forming Units (CFUs).")
+
+    # Settings for OpenCV
+    col1, col2 = st.columns(2)
+    with col1:
+        min_area = st.slider("Minimum Colony Size (Pixels)", min_value=1, max_value=100, value=10)
+    with col2:
+        max_area = st.slider("Maximum Colony Size (Pixels)", min_value=500, max_value=10000, value=5000)
+
+    count_file = st.file_uploader("📤 Upload Agar Plate Image", type=["jpg","png","jpeg"], key="count")
+
+    if count_file is not None:
+        # Convert uploaded file to OpenCV format
+        image = Image.open(count_file).convert('RGB')
+        img_array = np.array(image)
+        
+        # OpenCV Processing (Grayscale, Blur, Threshold, Morphology)
+        gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
+        blurred = cv2.GaussianBlur(gray, (11, 11), 0)
+        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 2)
+        
+        kernel = np.ones((3, 3), np.uint8)
+        opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
+        
+        # Find Contours
+        contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        colony_count = 0
+        img_with_boxes = img_array.copy()
+
+        # Filter by area and draw bounding boxes
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if min_area < area < max_area:
+                x, y, w, h = cv2.boundingRect(contour)
+                cv2.rectangle(img_with_boxes, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                colony_count += 1
+
+        # Display Results
+        st.markdown("---")
+        st.metric(label="Total Colonies Detected (CFUs)", value=colony_count)
+        
+        # Show images side by side
+        img_col1, img_col2 = st.columns(2)
+        with img_col1:
+            st.image(image, caption="Original Image", use_container_width=True)
+        with img_col2:
+            st.image(img_with_boxes, caption="Detected Colonies (Bounding Boxes)", use_container_width=True)
