@@ -18,79 +18,26 @@ st.markdown("Integrated framework for **Pathogen Identification (ProtoNet)** and
 # --- Config ---
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 MODEL_PATH = "advanced_protonet_resnet18.pth"
-SUPPORT_DIR = "Inbuilt_Support" # අලුත් කුඩා ෆෝල්ඩරය
+SUPPORT_DIR = "Inbuilt_Support"
 NUM_SUPPORT_PER_CLASS = 5
-THRESHOLD = 45.0  # Open-Set Recognition Threshold
 
 # ==========================================
-# BACTERIA KNOWLEDGE BASE (Clinical Data)
+# BACTERIA KNOWLEDGE BASE
 # ==========================================
 BACTERIA_INFO = {
-    "Acinetobacter.baumanii": {
-        "description": "Gram-negative, strictly aerobic, pleomorphic coccobacillus.",
-        "diseases": "Hospital-acquired pneumonia, Bloodstream infections, Meningitis, Wound infections.",
-        "details": "Highly associated with hospital-acquired (nosocomial) infections. Known for severe multi-drug resistance (CRAB)."
-    },
-    "Bacteroides.fragilis": {
-        "description": "Gram-negative, obligately anaerobic, rod-shaped bacterium.",
-        "diseases": "Intra-abdominal infections, Pelvic inflammatory disease, Bacteremia.",
-        "details": "Part of the normal human colon flora but becomes highly pathogenic if displaced into the bloodstream or surrounding tissue."
-    },
-    "Enterococcus.faecalis": {
-        "description": "Gram-positive, commensal bacterium inhabiting the gastrointestinal tracts.",
-        "diseases": "Urinary Tract Infections (UTIs), Endocarditis, Bacteremia, Wound infections.",
-        "details": "Can cause life-threatening infections in humans, especially in hospital environments. High natural resistance to many antibiotics."
-    },
-    "Escherichia.coli": {
-        "description": "Gram-negative, facultatively anaerobic, rod-shaped coliform bacterium.",
-        "diseases": "Urinary Tract Infections (UTIs), Gastroenteritis, Hemorrhagic colitis.",
-        "details": "While mostly harmless in the gut, pathogenic strains (like O157:H7) can cause severe foodborne illnesses and kidney failure."
-    },
-    "Listeria.monocytogenes": {
-        "description": "Gram-positive, rod-shaped bacterium capable of surviving in the presence or absence of oxygen.",
-        "diseases": "Listeriosis, Meningitis, Encephalitis, Severe infections in newborns.",
-        "details": "A dangerous foodborne pathogen that can grow and multiply even at refrigerator temperatures (4°C)."
-    },
-    "Neisseria.gonorrhoeae": {
-        "description": "Gram-negative diplococci (occurring in pairs) bacteria.",
-        "diseases": "Gonorrhea, Pelvic Inflammatory Disease (PID), Septic arthritis.",
-        "details": "A sexually transmitted pathogen. It is highly adaptive and currently showing increasing resistance to multiple antibiotic classes."
-    },
-    "Proteus": {
-        "description": "Gram-negative, facultatively anaerobic, rod-shaped bacterium with swarming motility.",
-        "diseases": "Complicated Urinary Tract Infections (UTIs), Kidney stones (Struvite stones).",
-        "details": "Produces the enzyme urease, which makes urine alkaline and leads to the rapid formation of kidney stones."
-    },
-    "Pseudomonas.aeruginosa": {
-        "description": "Gram-negative, aerobic, rod-shaped bacterium with unipolar motility.",
-        "diseases": "Ventilator-associated pneumonia, Sepsis, Infections in burn wounds and cystic fibrosis.",
-        "details": "Known for its distinctive green-blue pigment (pyocyanin) and a fruity odor. Highly resistant to a wide range of antibiotics."
-    },
-    "Staphylococcus.aureus": {
-        "description": "Gram-positive, round-shaped bacterium frequently found in the upper respiratory tract and on the skin.",
-        "diseases": "Skin and soft tissue infections, Pneumonia, Endocarditis, Osteomyelitis.",
-        "details": "Forms golden-yellow colonies. Methicillin-resistant strains (MRSA) are a major global healthcare concern."
-    },
-    "Staphylococcus.epidermidis": {
-        "description": "Gram-positive bacterium, and one of the most common species of the normal human skin flora.",
-        "diseases": "Infections of intravascular devices (catheters, prosthetics), Endocarditis.",
-        "details": "Not typically pathogenic, but forms thick biofilms on plastic implants and catheters, making infections very hard to treat."
-    },
-    "Streptococcus.agalactiae": {
-        "description": "Gram-positive coccus that forms chains. Also known as Group B Streptococcus (GBS).",
-        "diseases": "Neonatal meningitis, Pneumonia, Sepsis in newborns.",
-        "details": "A common asymptomatic colonizer of the gastrointestinal and genital tracts, but highly dangerous to infants during childbirth."
-    },
-    "Streptococcus.pneumoniae": {
-        "description": "Gram-positive, lancet-shaped diplococci bacterium.",
-        "diseases": "Community-acquired pneumonia, Otitis media (ear infections), Sinusitis, Meningitis.",
-        "details": "Possesses a thick polysaccharide capsule that makes it resistant to phagocytosis (being eaten by immune cells)."
-    },
-    "Candida.albicans": {
-        "description": "An opportunistic pathogenic yeast (fungus), not a typical bacterium.",
-        "diseases": "Oral thrush, Vaginal yeast infections, Invasive candidiasis.",
-        "details": "Usually lives harmlessly in the human body, but can overgrow and cause severe infections in immunocompromised individuals."
-    }
+    "Acinetobacter.baumanii": {"description": "Gram-negative, strictly aerobic, pleomorphic coccobacillus.", "diseases": "Hospital-acquired pneumonia, Bloodstream infections.", "details": "Highly associated with hospital-acquired (nosocomial) infections."},
+    "Bacteroides.fragilis": {"description": "Gram-negative, obligately anaerobic, rod-shaped bacterium.", "diseases": "Intra-abdominal infections, Pelvic inflammatory disease.", "details": "Part of the normal human colon flora but becomes highly pathogenic if displaced."},
+    "Enterococcus.faecalis": {"description": "Gram-positive, commensal bacterium inhabiting the gastrointestinal tracts.", "diseases": "Urinary Tract Infections (UTIs), Endocarditis.", "details": "High natural resistance to many antibiotics."},
+    "Escherichia.coli": {"description": "Gram-negative, facultatively anaerobic, rod-shaped coliform bacterium.", "diseases": "Urinary Tract Infections (UTIs), Gastroenteritis.", "details": "Pathogenic strains can cause severe foodborne illnesses."},
+    "Listeria.monocytogenes": {"description": "Gram-positive, rod-shaped bacterium.", "diseases": "Listeriosis, Meningitis.", "details": "A dangerous foodborne pathogen that can grow at refrigerator temperatures."},
+    "Neisseria.gonorrhoeae": {"description": "Gram-negative diplococci bacteria.", "diseases": "Gonorrhea, Pelvic Inflammatory Disease (PID).", "details": "A sexually transmitted pathogen showing increasing antibiotic resistance."},
+    "Proteus": {"description": "Gram-negative, facultatively anaerobic, rod-shaped bacterium.", "diseases": "Complicated UTIs, Kidney stones.", "details": "Produces urease, leading to rapid formation of kidney stones."},
+    "Pseudomonas.aeruginosa": {"description": "Gram-negative, aerobic, rod-shaped bacterium.", "diseases": "Ventilator-associated pneumonia, Sepsis.", "details": "Known for distinctive green-blue pigment and high antibiotic resistance."},
+    "Staphylococcus.aureus": {"description": "Gram-positive, round-shaped bacterium.", "diseases": "Skin infections, Pneumonia, Osteomyelitis.", "details": "Forms golden-yellow colonies. MRSA is a major healthcare concern."},
+    "Staphylococcus.epidermidis": {"description": "Gram-positive bacterium, common skin flora.", "diseases": "Infections of intravascular devices.", "details": "Forms thick biofilms on plastic implants and catheters."},
+    "Streptococcus.agalactiae": {"description": "Gram-positive coccus that forms chains (GBS).", "diseases": "Neonatal meningitis, Pneumonia.", "details": "Highly dangerous to infants during childbirth."},
+    "Streptococcus.pneumoniae": {"description": "Gram-positive, lancet-shaped diplococci.", "diseases": "Community-acquired pneumonia, Meningitis.", "details": "Possesses a thick capsule making it resistant to immune cells."},
+    "Candida.albicans": {"description": "An opportunistic pathogenic yeast (fungus).", "diseases": "Oral thrush, Invasive candidiasis.", "details": "Can overgrow and cause severe infections in immunocompromised individuals."}
 }
 
 # ---- 1. Model Architecture ----
@@ -172,11 +119,20 @@ prototypes = build_prototypes(SUPPORT_DIR, model, NUM_SUPPORT_PER_CLASS)
 
 
 # ==========================================
-# Sidebar: Support Set Updater
+# Sidebar: Settings & Support Set Updater
 # ==========================================
-st.sidebar.header("⚙️ Support Set Manager")
-st.sidebar.write("Add a novel bacterial class to the memory.")
+st.sidebar.header("🎛️ Advanced Settings")
+THRESHOLD = st.sidebar.slider(
+    "OOD Detection Threshold", 
+    min_value=5.0, 
+    max_value=80.0, 
+    value=38.0, 
+    step=1.0, 
+    help="Lower values are stricter. If a sample's distance is higher than this, it is flagged as Unknown."
+)
 
+st.sidebar.markdown("---")
+st.sidebar.header("⚙️ Support Set Manager")
 new_class_name = st.sidebar.text_input("New Species Name:")
 new_class_files = st.sidebar.file_uploader("Upload exactly 5 images (5-Shot)", accept_multiple_files=True, type=["jpg","jpeg","png"])
 
@@ -188,13 +144,11 @@ if st.sidebar.button("Update Prototype Memory"):
     else:
         new_dir = os.path.join(SUPPORT_DIR, new_class_name)
         os.makedirs(new_dir, exist_ok=True)
-        
         for f in new_class_files:
             with open(os.path.join(new_dir, f.name), "wb") as out_file:
                 out_file.write(f.getbuffer())
-                
         st.cache_resource.clear()
-        st.sidebar.success(f"✅ '{new_class_name}' added successfully! Page will refresh...")
+        st.sidebar.success(f"✅ '{new_class_name}' added! Refreshing...")
         st.rerun()
 
 # ==========================================
@@ -211,14 +165,16 @@ with tab1:
     else:
         st.success(f"✅ System Online: {len(prototypes)} distinct bacterial species loaded into Prototype Memory.")
 
-        uploaded_files = st.file_uploader("📤 Upload microscopy images for analysis (Minimum 5 images required)", type=["jpg","jpeg","png","bmp","tif","tiff"], accept_multiple_files=True, key="query")
+        uploaded_files = st.file_uploader("📤 Upload microscopy images for analysis (Minimum 5 required)", type=["jpg","jpeg","png","bmp","tif","tiff"], accept_multiple_files=True, key="query")
 
         if uploaded_files:
             if len(uploaded_files) < 5:
-                st.warning(f"⚠️ You have only uploaded {len(uploaded_files)} image(s). Please upload at least 5 images to run the analysis (Majority Voting).")
+                st.warning(f"⚠️ You have uploaded {len(uploaded_files)} image(s). Please upload at least 5 images for Majority Voting.")
             else:
-                st.info(f"⏳ Processing {len(uploaded_files)} images via ResNet18... Please wait.")
+                st.info("⏳ Processing images via ResNet18... Please wait.")
+                
                 all_preds = []
+                image_details = [] # අලුතින් එකතු කළ List එක (දුර අගයන් සේව් කරගන්න)
                 
                 for uploaded_file in uploaded_files:
                     try:
@@ -228,14 +184,24 @@ with tab1:
                         class_names = list(prototypes.keys())
                         proto_matrix = np.stack([prototypes[c] for c in class_names], axis=0)
                         
+                        # දුර ගණනය කිරීම
                         dists = np.linalg.norm(proto_matrix - test_emb[None, :], axis=1)
                         min_idx = int(np.argmin(dists))
-                        min_dist = dists[min_idx]
+                        min_dist = float(dists[min_idx]) # හරියටම දුර අගය ගන්නවා
                         
                         if min_dist > THRESHOLD:
-                            all_preds.append("Unknown Species (Out of Distribution)")
+                            pred_label = "Unknown Species (Out of Distribution)"
                         else:
-                            all_preds.append(class_names[min_idx])
+                            pred_label = class_names[min_idx]
+                            
+                        all_preds.append(pred_label)
+                        
+                        # Dictionary එකක් විදිහට හැම විස්තරයක්ම සේව් කරගන්නවා
+                        image_details.append({
+                            "file": uploaded_file,
+                            "pred": pred_label,
+                            "dist": min_dist
+                        })
                             
                     except Exception as e:
                         st.error(f"Error processing {uploaded_file.name}: {e}")
@@ -252,29 +218,39 @@ with tab1:
                         st.success(f"🦠 **Final Predicted Bacteria:** {best_answer}")
                         st.write(f"*(Confidence: {max_votes} out of {len(all_preds)} images agreed on this result)*")
                         
-                        # --- INFO DISPLAY SECTION ---
                         st.markdown("### 📋 Clinical Information")
                         info = BACTERIA_INFO.get(best_answer)
-                        
                         if info:
                             st.info(f"**🔬 Description:** {info['description']}")
                             st.warning(f"**⚠️ Associated Diseases:** {info['diseases']}")
                             st.success(f"**💡 Clinical Details:** {info['details']}")
-                        else:
-                            st.info("⚠️ No clinical information available in the knowledge base for this newly added species.")
                     
-                    with st.expander("📊 View Detailed Voting Results"):
-                        st.write("Breakdown according to processed images:")
+                    # --- අලුත් දුර (Distance) පෙන්වන කොටස ---
+                    with st.expander("📊 View Detailed Voting Results & Distances"):
+                        st.write("**Vote Breakdown:**")
                         for name, count in vote_counts.items():
                             percentage = (count / len(all_preds)) * 100
-                            st.write(f"- **{name}**: {count} images ({percentage:.1f}%)")
+                            st.write(f"- {name}: {count} images ({percentage:.1f}%)")
                             
                         st.write("---")
-                        cols = st.columns(min(len(uploaded_files), 5)) 
-                        for i, col in enumerate(cols):
+                        st.markdown("### 📏 Image-by-Image Distance Analysis:")
+                        st.write("*Note: Distance must be below the Threshold to be classified.*")
+                        
+                        cols = st.columns(min(len(image_details), 5)) 
+                        for i, detail in enumerate(image_details):
                             if i < 5:
-                                img = Image.open(uploaded_files[i])
-                                col.image(img, use_container_width=True) 
+                                img = Image.open(detail["file"])
+                                cols[i].image(img, use_container_width=True)
+                                
+                                # දුර අගය ලොකුවට පෙන්වීම
+                                cols[i].markdown(f"**Dist: {detail['dist']:.2f}**")
+                                
+                                # Pass ද Fail ද කියලා පෙන්වීම
+                                if "Unknown" in detail["pred"]:
+                                    cols[i].error("OOD (Unknown)")
+                                else:
+                                    cols[i].success(detail["pred"].split(".")[0]) # නමේ මුල් කෑල්ල විතරක් පෙන්වයි
+
                         if len(uploaded_files) > 5:
                             st.write(f"... and {len(uploaded_files) - 5} more images processed.")
 
@@ -283,37 +259,26 @@ with tab1:
 # ---------------------------------------------------------
 with tab2:
     st.header("🧮 Edge-Based Bacterial Colony Counting")
-    st.write("Upload an Agar Plate image to automatically segment and count Colony-Forming Units (CFUs).")
-
-    # Settings for OpenCV
     col1, col2 = st.columns(2)
     with col1:
-        min_area = st.slider("Minimum Colony Size (Pixels)", min_value=1, max_value=100, value=10)
+        min_area = st.slider("Minimum Colony Size (Pixels)", 1, 100, 10)
     with col2:
-        max_area = st.slider("Maximum Colony Size (Pixels)", min_value=500, max_value=10000, value=5000)
+        max_area = st.slider("Maximum Colony Size (Pixels)", 500, 10000, 5000)
 
     count_file = st.file_uploader("📤 Upload Agar Plate Image", type=["jpg","png","jpeg"], key="count")
 
     if count_file is not None:
-        # Convert uploaded file to OpenCV format
         image = Image.open(count_file).convert('RGB')
         img_array = np.array(image)
-        
-        # OpenCV Processing (Grayscale, Blur, Threshold, Morphology)
         gray = cv2.cvtColor(img_array, cv2.COLOR_RGB2GRAY)
         blurred = cv2.GaussianBlur(gray, (11, 11), 0)
         thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 15, 2)
-        
         kernel = np.ones((3, 3), np.uint8)
         opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
-        
-        # Find Contours
         contours, _ = cv2.findContours(opening, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
         colony_count = 0
         img_with_boxes = img_array.copy()
 
-        # Filter by area and draw bounding boxes
         for contour in contours:
             area = cv2.contourArea(contour)
             if min_area < area < max_area:
@@ -321,13 +286,10 @@ with tab2:
                 cv2.rectangle(img_with_boxes, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 colony_count += 1
 
-        # Display Results
         st.markdown("---")
         st.metric(label="Total Colonies Detected (CFUs)", value=colony_count)
-        
-        # Show images side by side
         img_col1, img_col2 = st.columns(2)
         with img_col1:
             st.image(image, caption="Original Image", use_container_width=True)
         with img_col2:
-            st.image(img_with_boxes, caption="Detected Colonies (Bounding Boxes)", use_container_width=True)
+            st.image(img_with_boxes, caption="Detected Colonies", use_container_width=True)
