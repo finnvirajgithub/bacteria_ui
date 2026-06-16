@@ -7,6 +7,7 @@ import os
 import glob
 import numpy as np
 import cv2
+import shutil # Added for deleting directories safely
 from collections import Counter
 
 st.set_page_config(page_title="Automated Pathogen System", layout="wide")
@@ -133,6 +134,37 @@ THRESHOLD = st.sidebar.slider(
 
 st.sidebar.markdown("---")
 st.sidebar.header("⚙️ Support Set Manager")
+
+# --- 1. CRUD: READ & DELETE Existing Classes ---
+st.sidebar.subheader("📂 Manage Existing Classes")
+os.makedirs(SUPPORT_DIR, exist_ok=True)
+existing_classes = sorted([d for d in os.listdir(SUPPORT_DIR) if os.path.isdir(os.path.join(SUPPORT_DIR, d))])
+
+if not existing_classes:
+    st.sidebar.info("No custom classes added to memory yet.")
+else:
+    with st.sidebar.expander(f"View / Delete Classes ({len(existing_classes)} total)"):
+        # Display the list of classes
+        for cls in existing_classes:
+            st.write(f"- 🦠 {cls}")
+        
+        st.markdown("---")
+        # Deletion functionality
+        class_to_delete = st.selectbox("Select a class to remove:", existing_classes)
+        if st.button("🗑️ Delete Selected Class"):
+            dir_to_remove = os.path.join(SUPPORT_DIR, class_to_delete)
+            try:
+                shutil.rmtree(dir_to_remove) # Safely delete the directory and its contents
+                st.cache_resource.clear()    # Clear cache to force prototype rebuild
+                st.success(f"✅ '{class_to_delete}' deleted successfully!")
+                st.rerun()                   # Refresh the app
+            except Exception as e:
+                st.error(f"Error deleting folder: {e}")
+
+st.sidebar.markdown("---")
+
+# --- 2. CRUD: CREATE New Class ---
+st.sidebar.subheader("➕ Add New Species")
 new_class_name = st.sidebar.text_input("New Species Name:")
 new_class_files = st.sidebar.file_uploader("Upload exactly 5 images (5-Shot)", accept_multiple_files=True, type=["jpg","jpeg","png"])
 
