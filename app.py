@@ -124,7 +124,7 @@ prototypes = build_prototypes(SUPPORT_DIR, model, NUM_SUPPORT_PER_CLASS)
 st.sidebar.header("🎛️ Advanced Settings")
 THRESHOLD = st.sidebar.slider(
     "OOD Detection Threshold", 
-    min_value=5.0, 
+    min_value=0.0, 
     max_value=80.0, 
     value=38.0, 
     step=1.0, 
@@ -174,7 +174,7 @@ with tab1:
                 st.info("⏳ Processing images via ResNet18... Please wait.")
                 
                 all_preds = []
-                image_details = [] # අලුතින් එකතු කළ List එක (දුර අගයන් සේව් කරගන්න)
+                image_details = [] # List to save the distance values for each image
                 
                 for uploaded_file in uploaded_files:
                     try:
@@ -184,10 +184,10 @@ with tab1:
                         class_names = list(prototypes.keys())
                         proto_matrix = np.stack([prototypes[c] for c in class_names], axis=0)
                         
-                        # දුර ගණනය කිරීම
+                        # Calculate Euclidean distance
                         dists = np.linalg.norm(proto_matrix - test_emb[None, :], axis=1)
                         min_idx = int(np.argmin(dists))
-                        min_dist = float(dists[min_idx]) # හරියටම දුර අගය ගන්නවා
+                        min_dist = float(dists[min_idx]) # Get the exact minimum distance value
                         
                         if min_dist > THRESHOLD:
                             pred_label = "Unknown Species (Out of Distribution)"
@@ -196,7 +196,7 @@ with tab1:
                             
                         all_preds.append(pred_label)
                         
-                        # Dictionary එකක් විදිහට හැම විස්තරයක්ම සේව් කරගන්නවා
+                        # Save all prediction details as a dictionary
                         image_details.append({
                             "file": uploaded_file,
                             "pred": pred_label,
@@ -225,7 +225,7 @@ with tab1:
                             st.warning(f"**⚠️ Associated Diseases:** {info['diseases']}")
                             st.success(f"**💡 Clinical Details:** {info['details']}")
                     
-                    # --- අලුත් දුර (Distance) පෙන්වන කොටස ---
+                    # --- Section to display Image-by-Image Distance ---
                     with st.expander("📊 View Detailed Voting Results & Distances"):
                         st.write("**Vote Breakdown:**")
                         for name, count in vote_counts.items():
@@ -242,14 +242,14 @@ with tab1:
                                 img = Image.open(detail["file"])
                                 cols[i].image(img, use_container_width=True)
                                 
-                                # දුර අගය ලොකුවට පෙන්වීම
+                                # Display the calculated distance prominently
                                 cols[i].markdown(f"**Dist: {detail['dist']:.2f}**")
                                 
-                                # Pass ද Fail ද කියලා පෙන්වීම
+                                # Indicate Pass or Fail based on the OOD status
                                 if "Unknown" in detail["pred"]:
                                     cols[i].error("OOD (Unknown)")
                                 else:
-                                    cols[i].success(detail["pred"].split(".")[0]) # නමේ මුල් කෑල්ල විතරක් පෙන්වයි
+                                    cols[i].success(detail["pred"].split(".")[0]) # Display only the genus name
 
                         if len(uploaded_files) > 5:
                             st.write(f"... and {len(uploaded_files) - 5} more images processed.")
