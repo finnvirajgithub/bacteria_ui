@@ -266,7 +266,7 @@ THRESHOLD = st.sidebar.slider(
     "OOD Detection Threshold", 
     min_value=0.0, 
     max_value=80.0, 
-    value=38.0, 
+    value=5.0, 
     step=1.0, 
     help="Lower values are stricter. If a sample's distance is higher than this, it is flagged as Unknown."
 )
